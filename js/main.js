@@ -121,6 +121,7 @@ async function boot() {
       toast("Edit config.js with your Mapillary token and Supabase keys.", true, 6000);
     }
     showScreen("screen-menu");
+    setTimeout(() => game.preloadViewer(), 50);
   } catch (e) {
     console.error(e);
     toast(e.message, true, 6000);

@@ -330,6 +330,18 @@ input::placeholder { color: var(--text-faint); }
   opacity: 0.85;
   filter: grayscale(0.2);
 }
+.hud-glyph {
+  font-size: 18px;
+  color: var(--accent);
+  width: 22px;
+  text-align: center;
+  filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.25));
+}
+.btn-glyph {
+  font-size: 16px;
+  width: 18px;
+  text-align: center;
+}
 .hud-stack { display: flex; flex-direction: column; }
 .hud-label {
   font-size: 10px;
@@ -570,6 +582,9 @@ input::placeholder { color: var(--text-faint); }
   background: var(--bg-2);
 }
 
+#screen-round-result.active, #screen-final.active { z-index: 50; }
+#screen-round-result #result-map, #screen-final #final-map { z-index: 1; }
+
 .result-panel {
   position: fixed;
   top: 50%;
@@ -585,8 +600,14 @@ input::placeholder { color: var(--text-faint); }
   max-width: 92vw;
   text-align: center;
   box-shadow: var(--shadow);
-  z-index: 5;
+  z-index: 100;
 }
+
+.screen:not(.active) #guess-map-container,
+.screen:not(.active) #pano-controls,
+.screen:not(.active) #hud-top,
+.screen:not(.active) #mp-players-strip,
+.screen:not(.active) .btn-icon.top-right { display: none !important; }
 .result-panel.wide { min-width: 460px; max-width: 540px; }
 .result-panel h2 {
   margin-bottom: 14px;

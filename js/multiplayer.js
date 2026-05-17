@@ -34,6 +34,59 @@ function genRoomCode() {
   return s;
 }
 
+const db = {
+  async insertRoom(code, hostId) {
+    const { error } = await supabase.from("rooms").insert({
+      room_code: code, host_id: hostId, game_status: "lobby"
+    });
+    if (error) throw error;
+  },
+  async deleteRoom(code) {
+    const { error } = await supabase.from("rooms").delete().eq("room_code", code);
+    if (error) console.warn("deleteRoom", error);
+  },
+  async updateRoom(code, patch) {
+    const { error } = await supabase.from("rooms").update(patch).eq("room_code", code);
+    if (error) console.warn("updateRoom", error);
+  },
+  async upsertPlayer(code, playerId, name) {
+    const { error } = await supabase.from("players").upsert(
+      { room_code: code, player_id: playerId, name, ready: false },
+      { onConflict: "room_code,player_id" }
+    );
+    if (error) console.warn("upsertPlayer", error);
+  },
+  async deletePlayer(code, playerId) {
+    const { error } = await supabase.from("players")
+      .delete().eq("room_code", code).eq("player_id", playerId);
+    if (error) console.warn("deletePlayer", error);
+  },
+  async setPlayerScore(code, playerId, score) {
+    const { error } = await supabase.from("players")
+      .update({ score }).eq("room_code", code).eq("player_id", playerId);
+    if (error) console.warn("setPlayerScore", error);
+  },
+  async insertGuess(row) {
+    const { error } = await supabase.from("guesses").upsert(row, {
+      onConflict: "room_code,round_num,player_id"
+    });
+    if (error) console.warn("insertGuess", error);
+  }
+};
+
+async function createRoomRow(hostId) {
+  for (let i = 0; i < 5; i++) {
+    const code = genRoomCode();
+    try {
+      await db.insertRoom(code, hostId);
+      return code;
+    } catch (e) {
+      if (e.code !== "23505") throw e;
+    }
+  }
+  throw new Error("Could not allocate a room code, try again");
+}
+
 function genPlayerId() {
   return "p_" + Math.random().toString(36).slice(2, 10);
 }
@@ -46,7 +99,8 @@ export async function createRoom(name) {
   myPlayerId = genPlayerId();
   isHost = true;
   hostId = myPlayerId;
-  currentRoom = genRoomCode();
+  currentRoom = await createRoomRow(myPlayerId);
+  await db.upsertPlayer(currentRoom, myPlayerId, myName);
   await joinChannel(currentRoom);
   showLobby(currentRoom);
   return currentRoom;
@@ -74,6 +128,7 @@ export async function joinRoom(rawCode, name) {
     await leaveRoom();
     throw new Error("Room is full");
   }
+  await db.upsertPlayer(code, myPlayerId, myName);
   showLobby(code);
 }
 
@@ -159,6 +214,7 @@ export async function startGameAsHost() {
   if (!isHost || !channel) return;
   const seed = seedFromString(currentRoom + ":" + Date.now());
   const indices = seededIndices(seed, CONFIG.ROUNDS_PER_GAME, CURATED_LOCATIONS.length);
+  await db.updateRoom(currentRoom, { game_status: "playing", current_round: 0 });
   await channel.send({
     type: "broadcast", event: "game_start",
     payload: { seed, indices }
@@ -213,6 +269,9 @@ async function broadcastRoundResults() {
   results.forEach(r => {
     window.__mpTotals[r.id] = (window.__mpTotals[r.id] || 0) + (r.score || 0);
   });
+  await Promise.all(results.map(r =>
+    db.setPlayerScore(currentRoom, r.id, window.__mpTotals[r.id] || 0)
+  ));
   await channel.send({
     type: "broadcast", event: "round_results",
     payload: { results, totals: { ...window.__mpTotals } }
@@ -246,6 +305,7 @@ function makeAdapter() {
       if (isHost) {
         pendingGuesses = {};
         clearTimeout(roundTimerHandle);
+        await db.updateRoom(currentRoom, { current_round: idx });
         await channel.send({
           type: "broadcast", event: "round_start",
           payload: { round: idx }
@@ -258,6 +318,8 @@ function makeAdapter() {
       setMpStrip([]);
     },
     async submitGuess({ guess, distanceKm, score }) {
+      const state = getState();
+      const roundIdx = state ? state.currentRoundIdx : 0;
       const payload = {
         playerId: myPlayerId,
         lat: guess ? guess.lat : 0,
@@ -267,6 +329,15 @@ function makeAdapter() {
         skipped: !guess,
         ts: Date.now()
       };
+      await db.insertGuess({
+        room_code: currentRoom,
+        round_num: roundIdx,
+        player_id: myPlayerId,
+        lat: guess ? guess.lat : null,
+        lng: guess ? guess.lng : null,
+        score: score || 0,
+        distance_km: distanceKm || 0
+      });
       await trackUpdate({ guessed: true });
       await channel.send({
         type: "broadcast", event: "guess",
@@ -284,6 +355,7 @@ function makeAdapter() {
             name: m.name,
             score: (window.__mpTotals || {})[m.id] || 0
           }));
+          await db.updateRoom(currentRoom, { game_status: "finished" });
           await channel.send({
             type: "broadcast", event: "game_end",
             payload: { leaderboard: lb }
@@ -301,6 +373,13 @@ function makeAdapter() {
 
 export async function leaveRoom() {
   clearTimeout(roundTimerHandle);
+  if (currentRoom && myPlayerId) {
+    if (isHost) {
+      await db.deleteRoom(currentRoom);
+    } else {
+      await db.deletePlayer(currentRoom, myPlayerId);
+    }
+  }
   if (channel) {
     try { await channel.untrack(); } catch (e) {}
     try { await supabase.removeChannel(channel); } catch (e) {}

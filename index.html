@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <link rel="stylesheet" href="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css" />
 <link rel="stylesheet" href="style.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.js"></script>
@@ -28,21 +29,21 @@
     <h1 class="logo">GeoGuess</h1>
     <p class="tagline">Drop into a random spot on Earth. Guess where you are.</p>
     <button class="btn primary big" id="btn-single">
-      <span class="btn-icon">🌍</span>
+      <i class="fa-solid fa-earth-americas btn-glyph"></i>
       <span>Single Player</span>
     </button>
     <div class="divider"><span>or play with friends</span></div>
     <input id="player-name" placeholder="Your name" maxlength="16" />
     <button class="btn" id="btn-mp-create">
-      <span class="btn-icon">🎮</span>
+      <i class="fa-solid fa-gamepad btn-glyph"></i>
       <span>Create Room</span>
     </button>
     <div class="join-row">
       <input id="join-code" placeholder="ROOM CODE" maxlength="6" />
-      <button class="btn" id="btn-mp-join">Join</button>
+      <button class="btn" id="btn-mp-join"><i class="fa-solid fa-arrow-right-to-bracket"></i></button>
     </div>
   </div>
-  <div class="menu-footer">Powered by Mapillary · Made with ♥</div>
+  <div class="menu-footer">Powered by Mapillary</div>
 </div>
 
 <div id="screen-lobby" class="screen">
@@ -51,7 +52,7 @@
     <div class="room-code-display">
       <span class="room-label">Room Code</span>
       <span id="lobby-code"></span>
-      <button class="btn ghost small" id="btn-copy-code" title="Copy code">📋</button>
+      <button class="btn ghost small" id="btn-copy-code" title="Copy code"><i class="fa-solid fa-copy"></i></button>
     </div>
     <ul id="lobby-players"></ul>
     <button class="btn primary" id="btn-lobby-start">Start Game</button>
@@ -65,14 +66,14 @@
 
   <div id="hud-top">
     <div class="hud-card">
-      <span class="hud-emoji">⚐</span>
+      <i class="fa-solid fa-flag hud-glyph"></i>
       <div class="hud-stack">
         <span class="hud-label">Round</span>
         <span class="hud-value" id="hud-round">1/5</span>
       </div>
     </div>
     <div class="hud-card">
-      <span class="hud-emoji">★</span>
+      <i class="fa-solid fa-star hud-glyph"></i>
       <div class="hud-stack">
         <span class="hud-label">Score</span>
         <span class="hud-value" id="hud-score">0</span>
@@ -87,10 +88,10 @@
     </div>
   </div>
 
-  <button class="btn-icon top-right" id="btn-quit" title="Quit">✕</button>
+  <button class="btn-icon top-right" id="btn-quit" title="Quit"><i class="fa-solid fa-xmark"></i></button>
 
   <div id="pano-controls">
-    <button class="btn-pano" id="btn-reset-pos" title="Return to start">⟲</button>
+    <button class="btn-pano" id="btn-reset-pos" title="Return to start"><i class="fa-solid fa-arrow-rotate-left"></i></button>
     <div id="compass" title="Compass — pan to rotate">
       <div id="compass-needle">
         <div class="needle-north"></div>
@@ -103,9 +104,10 @@
   <div id="mp-players-strip"></div>
 
   <div id="guess-map-container">
-    <button class="map-toggle" id="map-toggle" aria-label="toggle map">⌄</button>
+    <button class="map-toggle" id="map-toggle" aria-label="toggle map"><i class="fa-solid fa-chevron-down"></i></button>
     <div id="guess-map"></div>
     <button class="btn-guess" id="btn-guess" disabled>
+      <i class="fa-solid fa-location-dot"></i>
       <span>MAKE GUESS</span>
     </button>
   </div>
@@ -118,7 +120,7 @@
     <div class="big-stat"><span id="result-score">0</span> <span class="unit">pts</span></div>
     <div class="medium-stat"><span id="result-distance">0 km</span> off</div>
     <div id="result-mp-list"></div>
-    <button class="btn primary" id="btn-next">Next Round →</button>
+    <button class="btn primary" id="btn-next"><span>Next Round</span> <i class="fa-solid fa-arrow-right"></i></button>
   </div>
 </div>
 

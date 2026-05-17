@@ -1,6 +1,6 @@
 import { CONFIG } from "../config.js";
 import { CURATED_LOCATIONS } from "../locations/curated.js";
-import { initPanorama, showLocation, lockPanorama, resolveLocationByIndex, resizeViewer, onBearingChange, resetToStart } from "./streetview.js";
+import { initPanorama, showLocation, lockPanorama, resolveLocationByIndex, resizeViewer, onBearingChange, resetToStart, prefetchImage } from "./streetview.js";
 import { initGuessMap, resetGuessMap, getCurrentGuess, initResultMap, drawRoundResult, initFinalMap, drawFinalSummary, invalidateAllMaps } from "./map.js";
 import { computeDistanceKm, scoreFromDistanceKm } from "./score.js";
 import { $, showScreen, setHud, setTimerTotal, toast, setLockedGuessButton, formatDistance, escapeHtml, setMpStrip } from "./ui.js";
@@ -62,8 +62,18 @@ function resetState() {
     locked: false,
     timeLeft: CONFIG.ROUND_TIME_SECONDS,
     started: false,
-    youId: null
+    youId: null,
+    prefetched: {}
   };
+}
+
+function prefetchNextLocation(idx) {
+  if (!state) return;
+  const nextIdx = idx + 1;
+  if (nextIdx >= state.indices.length) return;
+  if (state.prefetched[nextIdx]) return;
+  state.prefetched[nextIdx] = resolveLocationByIndex(state.indices[nextIdx])
+    .catch(() => null);
 }
 
 export async function startSinglePlayer() {
@@ -108,6 +118,10 @@ function ensureMapsInit() {
   }
 }
 
+export function preloadViewer() {
+  try { ensureMapsInit(); } catch (e) { console.warn("preloadViewer", e); }
+}
+
 async function beginRound(idx) {
   state.currentRoundIdx = idx;
   state.currentGuess = null;
@@ -118,11 +132,15 @@ async function beginRound(idx) {
   setHud({ round: idx + 1, total: CONFIG.ROUNDS_PER_GAME, time: CONFIG.ROUND_TIME_SECONDS, score: state.totalScore });
   showScreen("screen-game");
   setTimeout(() => { resizeViewer(); invalidateAllMaps(); }, 150);
-  toast("Loading panorama…", false, 1500);
-
   const locIdx = state.indices[idx];
   try {
-    const loc = await resolveLocationByIndex(locIdx);
+    let loc = null;
+    const pending = state.prefetched[idx];
+    if (pending) loc = await pending;
+    if (!loc) {
+      toast("Loading panorama…", false, 1500);
+      loc = await resolveLocationByIndex(locIdx);
+    }
     state.currentLocation = loc;
     await showLocation(loc);
   } catch (e) {
@@ -130,6 +148,8 @@ async function beginRound(idx) {
     toast(e.message || "Failed to load panorama", true, 4000);
     throw e;
   }
+
+  prefetchNextLocation(idx);
 
   if (mpAdapter) {
     mpAdapter.onRoundStart(idx, state.currentLocation);
@@ -214,6 +234,12 @@ function colorForId(id) {
 
 function showRoundResult({ otherGuesses, mpResults }) {
   showScreen("screen-round-result");
+  const nextIdx = state.currentRoundIdx + 1;
+  if (nextIdx < state.indices.length) {
+    Promise.resolve(state.prefetched[nextIdx]).then(loc => {
+      if (loc && loc.imageId) prefetchImage(loc.imageId);
+    });
+  }
   const r = state.rounds[state.currentRoundIdx];
   $("result-title").textContent = `Round ${state.currentRoundIdx + 1}`;
   animateNumber($("result-score"), 0, r.score, 800);

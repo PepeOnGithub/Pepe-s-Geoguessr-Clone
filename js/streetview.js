@@ -16,15 +16,17 @@ export function initPanorama(container) {
   viewer = new mapillary.Viewer({
     accessToken: CONFIG.MAPILLARY_TOKEN,
     container,
+    imageTiling: false,
     component: {
       cover: false,
       attribution: true,
       bearing: false,
-      direction: false,
+      direction: true,
       sequence: false,
-      zoom: false,
+      zoom: true,
       image: true,
-      pointer: { dragPan: true, scrollZoom: false, touchZoom: true }
+      cache: { depth: { sequence: 4, spherical: 2, step: 3, turn: 1 } },
+      pointer: { dragPan: true, scrollZoom: true, touchZoom: true }
     }
   });
   viewer.on("bearing", e => {
@@ -50,6 +52,11 @@ export function lockPanorama(locked) {
 export async function resetToStart() {
   if (!viewer || !initialImageId) return;
   try { await viewer.moveTo(initialImageId); } catch (e) {}
+}
+
+export async function prefetchImage(imageId) {
+  if (!viewer || !imageId) return;
+  try { await viewer.moveTo(imageId); } catch (e) {}
 }
 
 const MAX_BBOX_AREA = 0.0095;
@@ -99,8 +106,28 @@ export async function resolveLocationByIndex(index) {
   const total = CURATED_LOCATIONS.length;
   const radius = CONFIG.SEARCH_RADIUS_METERS || 3500;
   const tried = new Set();
-  const strides = [1, 7, 13, 23, 37];
 
+  const firstBatch = [];
+  for (let i = 0; i < 5; i++) {
+    const idx = (index + i) % total;
+    tried.add(idx);
+    firstBatch.push({ idx, loc: CURATED_LOCATIONS[idx] });
+  }
+  const parallel = await Promise.all(
+    firstBatch.map(({ loc }) => searchMapillary(loc.lat, loc.lng, radius))
+  );
+  for (let i = 0; i < parallel.length; i++) {
+    if (parallel[i]) {
+      const { idx, loc } = firstBatch[i];
+      const hit = parallel[i];
+      return {
+        index: idx, lat: hit.lat, lng: hit.lng,
+        imageId: hit.imageId, label: loc.label || null
+      };
+    }
+  }
+
+  const strides = [7, 13, 23, 37];
   for (const stride of strides) {
     for (let i = 0; i < 50 && tried.size < total; i++) {
       const idx = (index + i * stride) % total;
