@@ -1,0 +1,55 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate config.js from secrets
+        env:
+          MAPILLARY_TOKEN: ${{ secrets.MAPILLARY_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          cat > config.js <<EOF
+          export const CONFIG = {
+            MAPILLARY_TOKEN: "${MAPILLARY_TOKEN}",
+            SUPABASE_URL: "${SUPABASE_URL}",
+            SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}",
+            ROUND_TIME_SECONDS: 60,
+            ROUNDS_PER_GAME: 5,
+            MAX_PLAYERS: 4,
+            SEARCH_RADIUS_METERS: 4000
+          };
+          EOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
