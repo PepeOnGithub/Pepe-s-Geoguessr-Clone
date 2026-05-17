@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 import { CONFIG } from "../config.js";
 import { CURATED_LOCATIONS } from "../locations/curated.js";
 import { seededIndices, seedFromString, startMultiplayerGame, onAllMpGuesses, advanceToRound, showFinal, getState } from "./game.js";
