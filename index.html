@@ -4,12 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>GeoGuess</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <link rel="stylesheet" href="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.css" />
 <link rel="stylesheet" href="style.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <script src="https://unpkg.com/mapillary-js@4.1.2/dist/mapillary.js"></script>
 </head>
 <body>
@@ -22,23 +23,36 @@
 </div>
 
 <div id="screen-menu" class="screen">
+  <div class="menu-bg"></div>
   <div class="menu-card">
     <h1 class="logo">GeoGuess</h1>
     <p class="tagline">Drop into a random spot on Earth. Guess where you are.</p>
-    <button class="btn primary" id="btn-single">Single Player</button>
-    <button class="btn" id="btn-mp-create">Create Multiplayer Room</button>
+    <button class="btn primary big" id="btn-single">
+      <span class="btn-icon">🌍</span>
+      <span>Single Player</span>
+    </button>
+    <div class="divider"><span>or play with friends</span></div>
+    <input id="player-name" placeholder="Your name" maxlength="16" />
+    <button class="btn" id="btn-mp-create">
+      <span class="btn-icon">🎮</span>
+      <span>Create Room</span>
+    </button>
     <div class="join-row">
       <input id="join-code" placeholder="ROOM CODE" maxlength="6" />
       <button class="btn" id="btn-mp-join">Join</button>
     </div>
-    <input id="player-name" placeholder="Your name" maxlength="16" />
   </div>
+  <div class="menu-footer">Powered by Mapillary · Made with ♥</div>
 </div>
 
 <div id="screen-lobby" class="screen">
   <div class="menu-card">
     <h2>Lobby</h2>
-    <div class="room-code-display">Room: <span id="lobby-code"></span></div>
+    <div class="room-code-display">
+      <span class="room-label">Room Code</span>
+      <span id="lobby-code"></span>
+      <button class="btn ghost small" id="btn-copy-code" title="Copy code">📋</button>
+    </div>
     <ul id="lobby-players"></ul>
     <button class="btn primary" id="btn-lobby-start">Start Game</button>
     <button class="btn ghost" id="btn-lobby-leave">Leave</button>
@@ -48,17 +62,52 @@
 
 <div id="screen-game" class="screen">
   <div id="streetview"></div>
-  <div id="hud">
-    <div class="hud-item"><span class="hud-label">Round</span><span id="hud-round">1/5</span></div>
-    <div class="hud-item"><span class="hud-label">Time</span><span id="hud-timer">60</span></div>
-    <div class="hud-item"><span class="hud-label">Score</span><span id="hud-score">0</span></div>
-    <button class="btn ghost small" id="btn-quit">Quit</button>
+
+  <div id="hud-top">
+    <div class="hud-card">
+      <span class="hud-emoji">⚐</span>
+      <div class="hud-stack">
+        <span class="hud-label">Round</span>
+        <span class="hud-value" id="hud-round">1/5</span>
+      </div>
+    </div>
+    <div class="hud-card">
+      <span class="hud-emoji">★</span>
+      <div class="hud-stack">
+        <span class="hud-label">Score</span>
+        <span class="hud-value" id="hud-score">0</span>
+      </div>
+    </div>
+    <div class="hud-card hud-timer-card">
+      <svg class="timer-ring" width="46" height="46" viewBox="0 0 46 46">
+        <circle class="timer-ring-bg" cx="23" cy="23" r="20"/>
+        <circle class="timer-ring-fg" cx="23" cy="23" r="20" id="timer-ring-fg"/>
+      </svg>
+      <span class="hud-timer-text" id="hud-timer">60</span>
+    </div>
   </div>
+
+  <button class="btn-icon top-right" id="btn-quit" title="Quit">✕</button>
+
+  <div id="pano-controls">
+    <button class="btn-pano" id="btn-reset-pos" title="Return to start">⟲</button>
+    <div id="compass" title="Compass — pan to rotate">
+      <div id="compass-needle">
+        <div class="needle-north"></div>
+        <div class="needle-south"></div>
+      </div>
+      <div class="compass-label-n">N</div>
+    </div>
+  </div>
+
   <div id="mp-players-strip"></div>
+
   <div id="guess-map-container">
+    <button class="map-toggle" id="map-toggle" aria-label="toggle map">⌄</button>
     <div id="guess-map"></div>
-    <button class="btn primary" id="btn-guess" disabled>Guess</button>
-    <button class="map-toggle" id="map-toggle" aria-label="toggle map">↗</button>
+    <button class="btn-guess" id="btn-guess" disabled>
+      <span>MAKE GUESS</span>
+    </button>
   </div>
 </div>
 
@@ -69,7 +118,7 @@
     <div class="big-stat"><span id="result-score">0</span> <span class="unit">pts</span></div>
     <div class="medium-stat"><span id="result-distance">0 km</span> off</div>
     <div id="result-mp-list"></div>
-    <button class="btn primary" id="btn-next">Next Round</button>
+    <button class="btn primary" id="btn-next">Next Round →</button>
   </div>
 </div>
 

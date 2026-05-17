@@ -7,6 +7,12 @@ let onGuessChange = null;
 
 export function getGuessMap() { return guessMap; }
 
+export function invalidateAllMaps() {
+  [guessMap, resultMap, finalMap].forEach(m => {
+    if (m) { try { m.invalidateSize(); } catch (e) {} }
+  });
+}
+
 export function initGuessMap(container, onChange) {
   onGuessChange = onChange;
   guessMap = L.map(container, {

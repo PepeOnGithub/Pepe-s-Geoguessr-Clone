@@ -22,15 +22,31 @@ export function toast(msg, isError = false, duration = 2500) {
   toastTimer = setTimeout(() => t.classList.remove("show"), duration);
 }
 
+const TIMER_CIRC = 2 * Math.PI * 20;
+let timerTotalRef = 60;
+
+export function setTimerTotal(total) { timerTotalRef = total || 60; }
+
 export function setHud({ round, total, time, score }) {
   if (round != null && total != null) $("hud-round").textContent = `${round}/${total}`;
   if (time != null) {
     const t = $("hud-timer");
     t.textContent = time;
-    t.classList.toggle("warn", time <= 15 && time > 5);
-    t.classList.toggle("danger", time <= 5);
+    const warn = time <= 15 && time > 5;
+    const danger = time <= 5;
+    t.classList.toggle("warn", warn);
+    t.classList.toggle("danger", danger);
+    const ring = $("timer-ring-fg");
+    if (ring) {
+      const frac = Math.max(0, Math.min(1, time / timerTotalRef));
+      ring.style.strokeDashoffset = String(TIMER_CIRC * (1 - frac));
+      ring.classList.toggle("warn", warn);
+      ring.classList.toggle("danger", danger);
+    }
   }
-  if (score != null) $("hud-score").textContent = score;
+  if (score != null) {
+    $("hud-score").textContent = Number(score).toLocaleString();
+  }
 }
 
 export function setMpStrip(rows) {

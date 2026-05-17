@@ -1,9 +1,9 @@
 import { CONFIG } from "../config.js";
 import { CURATED_LOCATIONS } from "../locations/curated.js";
-import { initPanorama, showLocation, lockPanorama, resolveLocationByIndex } from "./streetview.js";
-import { initGuessMap, resetGuessMap, getCurrentGuess, initResultMap, drawRoundResult, initFinalMap, drawFinalSummary } from "./map.js";
+import { initPanorama, showLocation, lockPanorama, resolveLocationByIndex, resizeViewer, onBearingChange, resetToStart } from "./streetview.js";
+import { initGuessMap, resetGuessMap, getCurrentGuess, initResultMap, drawRoundResult, initFinalMap, drawFinalSummary, invalidateAllMaps } from "./map.js";
 import { computeDistanceKm, scoreFromDistanceKm } from "./score.js";
-import { $, showScreen, setHud, toast, setLockedGuessButton, formatDistance, escapeHtml, setMpStrip } from "./ui.js";
+import { $, showScreen, setHud, setTimerTotal, toast, setLockedGuessButton, formatDistance, escapeHtml, setMpStrip } from "./ui.js";
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -88,12 +88,17 @@ export async function startMultiplayerGame({ seed, indices, adapter, youId }) {
 async function runGame() {
   showScreen("screen-game");
   ensureMapsInit();
+  setTimeout(() => { resizeViewer(); invalidateAllMaps(); }, 200);
   await beginRound(0);
 }
 
 function ensureMapsInit() {
   if (!window.__panoInit) {
     initPanorama($("streetview"));
+    onBearingChange(bearing => {
+      const needle = document.getElementById("compass-needle");
+      if (needle) needle.style.transform = `rotate(${-bearing}deg)`;
+    });
     initGuessMap($("guess-map"), guess => {
       setLockedGuessButton(false);
     });
@@ -112,15 +117,22 @@ async function beginRound(idx) {
   resetGuessMap();
   setHud({ round: idx + 1, total: CONFIG.ROUNDS_PER_GAME, time: CONFIG.ROUND_TIME_SECONDS, score: state.totalScore });
   showScreen("screen-game");
-  toast("Loading panorama…", false, 1200);
+  setTimeout(() => { resizeViewer(); invalidateAllMaps(); }, 150);
+  toast("Loading panorama…", false, 1500);
 
   const locIdx = state.indices[idx];
-  const loc = await resolveLocationByIndex(locIdx);
-  state.currentLocation = loc;
-  showLocation(loc);
+  try {
+    const loc = await resolveLocationByIndex(locIdx);
+    state.currentLocation = loc;
+    await showLocation(loc);
+  } catch (e) {
+    console.error(e);
+    toast(e.message || "Failed to load panorama", true, 4000);
+    throw e;
+  }
 
   if (mpAdapter) {
-    mpAdapter.onRoundStart(idx, loc);
+    mpAdapter.onRoundStart(idx, state.currentLocation);
   }
 
   startTimer();
@@ -128,6 +140,7 @@ async function beginRound(idx) {
 
 function startTimer() {
   clearInterval(timerHandle);
+  setTimerTotal(CONFIG.ROUND_TIME_SECONDS);
   state.timeLeft = CONFIG.ROUND_TIME_SECONDS;
   setHud({ time: state.timeLeft });
   timerHandle = setInterval(() => {

@@ -2,6 +2,7 @@ import { CONFIG } from "../config.js";
 import { $, showScreen, toast } from "./ui.js";
 import * as game from "./game.js";
 import { getCurrentGuess } from "./map.js";
+import { resetToStart, resizeViewer } from "./streetview.js";
 import * as mp from "./multiplayer.js";
 
 function waitForGlobals() {
@@ -98,6 +99,17 @@ function bindUI() {
 
   $("map-toggle").addEventListener("click", () => {
     $("guess-map-container").classList.toggle("collapsed");
+    setTimeout(() => { resizeViewer(); }, 320);
+  });
+
+  const resetBtn = document.getElementById("btn-reset-pos");
+  if (resetBtn) resetBtn.addEventListener("click", () => resetToStart());
+
+  const copyBtn = document.getElementById("btn-copy-code");
+  if (copyBtn) copyBtn.addEventListener("click", async () => {
+    const code = $("lobby-code").textContent;
+    try { await navigator.clipboard.writeText(code); toast("Code copied"); }
+    catch { toast("Copy failed", true); }
   });
 }
 
